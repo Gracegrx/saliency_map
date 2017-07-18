@@ -1,0 +1,70 @@
+import pandas as pd
+import numpy as np
+import csv
+import matplotlib.pyplot as plt
+from data import FixationsList
+
+class DataImporter:
+    saliency_map_size = (128, 128, 1)
+    def __init__(self, filename):
+        self.file_data = pd.read_csv(filename, delimiter="\t", quoting=csv.QUOTE_NONE)
+               
+    def get_fix_sequence_df(self, closure, columns):
+        output_array = []
+        for (subject, slide_no, uniqueID, img_pos, presentation, slide_type,
+             fixation_list) in self._iterate_file_data(self.file_data):
+            output = closure(fixation_list, subject, slide_no, presentation, slide_type, uniqueID, img_pos)
+            output_array.append(output)
+        output_df = pd.concat(output_array)
+        output_df.columns = columns
+        return output_df
+        
+    def _iterate_file_data(self, file_data):
+        subject_data = {}
+        for row in file_data.iterrows():
+            fix_x = self._split_by_comma(row[1]["FixationPositionsX"])
+            fix_y = self._split_by_comma(row[1]["FixationPositionsY"])
+            fix_dur = self._split_by_comma(row[1]["FixationDurations_ms"])
+            fix_start = self._split_by_comma(row[1]["FixationStart"])
+            fix_loc_x = self._split_by_comma(row[1]["Loc_x"])
+            fix_loc_y = self._split_by_comma(row[1]["Loc_y"])
+            fix_size_x = self._split_by_comma(row[1]["Size_x"])
+            fix_size_y = self._split_by_comma(row[1]["Size_y"])
+
+            fix_list = FixationsList.from_pos(
+                fix_x, fix_y, fix_start, fix_dur, fix_loc_x, fix_loc_y, fix_size_x, fix_size_y)
+            uniqueID = row[1]["uniqueImgID"]
+            img_pos = row[1]["ImId"]
+            subject = row[1]["Subject"]
+            slide_num = row[1]["Slide_Num"]
+            slide_type = row[1]["slideType(s)"]
+            presentation = row[1]["Presentation"]            
+            if subject not in subject_data:
+                subject_data[subject] = {}
+
+            identifier = (uniqueID, img_pos, presentation, slide_num, slide_type)
+            if identifier not in subject_data[subject]:
+                subject_data[subject][identifier] = fix_list
+            else:
+                subject_data[subject][identifier] = subject_data[subject][identifier] + fix_list
+                
+        for subject_i in subject_data:
+            for (uniqueID, img_pos, presentation, slide_num, slide_type) in subject_data[subject_i]:
+                yield subject_i, slide_num, uniqueID, img_pos, presentation, slide_type, subject_data[subject_i][(
+                    presentation, slide_num, slide_type)]
+            
+    def _split_by_comma(self, comma_string):
+        output = []
+        array = comma_string.split(",")
+        for i in array:
+            i_o = i.replace("\"", "")
+            if self.is_float(i_o):
+                output.append(float(i_o))
+        return output
+                
+    def is_float(self, s):
+        try: 
+            float(s)
+            return True
+        except ValueError:
+            return False
