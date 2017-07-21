@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import csv
 import matplotlib.pyplot as plt
-from data import FixationsList
+from Fixations import FixationsList
 
 class DataImporter:
     saliency_map_size = (128, 128, 1)
@@ -16,6 +16,7 @@ class DataImporter:
             output = closure(fixation_list, subject, slide_no, presentation, slide_type, uniqueID, img_pos)
             output_array.append(output)
         output_df = pd.concat(output_array)
+        #print "columns of output_df is: ", output_df.columns
         output_df.columns = columns
         return output_df
         
@@ -26,14 +27,15 @@ class DataImporter:
             fix_y = self._split_by_comma(row[1]["FixationPositionsY"])
             fix_dur = self._split_by_comma(row[1]["FixationDurations_ms"])
             fix_start = self._split_by_comma(row[1]["FixationStart"])
-            fix_loc_x = self._split_by_comma(row[1]["Loc_x"])
-            fix_loc_y = self._split_by_comma(row[1]["Loc_y"])
-            fix_size_x = self._split_by_comma(row[1]["Size_x"])
-            fix_size_y = self._split_by_comma(row[1]["Size_y"])
+            fix_loc_x = self._split_by_comma(str(row[1]["Loc_x"]))
+            fix_loc_y = self._split_by_comma(str(row[1]["Loc_y"]))
+            fix_size_x = self._split_by_comma(str(row[1]["Size_x"]))
+            fix_size_y = self._split_by_comma(str(row[1]["Size_y"]))
+
 
             fix_list = FixationsList.from_pos(
                 fix_x, fix_y, fix_start, fix_dur, fix_loc_x, fix_loc_y, fix_size_x, fix_size_y)
-            uniqueID = row[1]["uniqueImgID"]
+            uniqueID = row[1]["uniqueImgID(s)"]
             img_pos = row[1]["ImId"]
             subject = row[1]["Subject"]
             slide_num = row[1]["Slide_Num"]
@@ -50,7 +52,7 @@ class DataImporter:
                 
         for subject_i in subject_data:
             for (uniqueID, img_pos, presentation, slide_num, slide_type) in subject_data[subject_i]:
-                yield subject_i, slide_num, uniqueID, img_pos, presentation, slide_type, subject_data[subject_i][(
+                yield subject_i, slide_num, uniqueID, img_pos, presentation, slide_type, subject_data[subject_i][(uniqueID, img_pos,
                     presentation, slide_num, slide_type)]
             
     def _split_by_comma(self, comma_string):
