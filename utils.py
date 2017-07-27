@@ -1,6 +1,6 @@
 import numpy as np
 
-def makeGaussian(size, centre, fwhm=5):
+def makeGaussian(size, centre, fwhm=10):
     x = np.arange(0, size[1], 1, float)
     y = np.arange(0, size[0], 1, float)[:,np.newaxis]
     x0 = centre[0]
