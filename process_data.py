@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
 from data_importer import DataImporter
-#from extract_images.get_extracted_images import GetExtractedImages
 import matplotlib.pyplot as plt
+from scipy.misc import imread, imresize
 from PIL import Image
+from utils import *
+import csv
+import os
+
 
 group_non = ['4 D', '5 D', '6 D', '9 D', '11 D', '14 D', '15 D', '16 D', '17 D', '18 D', '23 D','24 D', '64 D', '70 D', '71 D', '72 D', '80 D', '81 D',
              '84 D', '88 D', '96 D']
@@ -46,6 +50,7 @@ def data_prepare():
     df = di.get_fix_sequence_df(per_img_closure,
                                 columns=["Subject", "cat", "Presentation", "Slide_no", "img_id", "slide_type",
                                             "UniqueID", "saliency_map", "duration"])
+    print "finish loading data!"
     return df
 
 def data_filtrate(df, index, value):
@@ -54,159 +59,152 @@ def data_filtrate(df, index, value):
     return df
 
 
-def show_saliency(dataset, name):
+def extract_saliency(dataset):
     res = np.zeros(DataImporter.saliency_map_size)
     count = 0
-    for(_, row) in dataset.iterrows():
+    for (_, row) in dataset.iterrows():
         res += row["saliency_map"]
         count += 1
 
-    result = res/count
-    maxpix = np.amax(result)
-    print "the max value of matrix is ", maxpix
-    result = result*255/maxpix
-    #img = Image.fromarray(np.uint(result[:, :, 0]), 'L')
-    #img.save("image_test.jpg")
-    fig = plt.figure()
-    plt.imshow(result[:, :, 0])
-    fig.savefig(''+name+'.jpg')
-    plt.show()
+    result = res / count
     return result
 
-def show_saliency_diff(img1, img2, name1, name2):
-    res = (img1-img2)[:,:,0]
-    rangee = np.amax(res) - np.amin(res)
-    temp_matrix = (255 / rangee) * np.ones(res.shape)
-    matrix = np.amin(res) * np.ones(res.shape)
-    adjust_diff = res - matrix
-    adjust_diff = adjust_diff * temp_matrix
-    img = Image.fromarray(255 * np.uint8(adjust_diff), 'RGB')
-    maximum = np.amax(res)
-    minimum = np.amin(res)
-    for i in range(len(adjust_diff)):
-        for j in range(len(adjust_diff[i])):
-            if adjust_diff_ori[i][j] >= 0:
-                num = min(255, int(255 * (1 - (maximum - res[i][j]) / maximum)))
-                img.putpixel((j, i), (num, 0, 0))
-            else:
-                num = min(255, int(255 * (1 - (minimum - res[i][j]) / minimum)))
-                img.putpixel((j, i), (0, 0, num))
-                #        img.show()
-    plt.imshow(img)
-    fig = plt.figure()
-    fig.savefig('compare'+name1+name2+'.jpg')
+
+def show_saliency(img, name):
+    maxpix = np.amax(img)
+    print "the max value of matrix is ", maxpix
+    img = img*255/maxpix
+    #fig = plt.figure()
+    plt.imshow(img[:, :, 0])
+    #fig.savefig(''+name+'.jpg')
+    #plt.show()
     return img
 
-def show_diff_from_img(img1, img2, name1, name2):
-    #matrix1 =
-    return 0
+def show_diff(img1, img2, name1, name2):
+    res = img1 - img2
+    maxpix = np.amax(res)
+    minpix = np.amin(res)
+    max = np.max(abs(maxpix), abs(minpix))
+    res = res*128/max
+    res = res + 128*np.ones(res.shape)
+    fig = plt.figure()
+    plt.imshow(res[:,:,0])
+    #fig.savefig(''+name1+'_'+name2+'.jpg')
+    #plt.show()
+    return res
 
 
-def add_background(saliency_map, image):
-
-
-
-    return 0
-
-    '''
-    hs = self.load()
-    region = hs[0].get_region()
-    im = Image.open(self.ori_img)
-    img1 = im.crop(region)
-    out = ImageChops.multiply(img1, img)
-    out.show()
-    img = Image.fromarray(np.uint(res[:, :, 0]), 'L')
-    '''
-
-    '''
-    for(_, row) in filter.iterrows():
-        subject = row["Subject"]
-        presentation = row["Presentation"]
-        slide_no = row["Slide_no"]
-        img_no = row["img_id"]
-        img_type = row["img_type"]
-        if verbose:
-            print("Processing: {}:{}-{}".format(subject, presentation, slide_no))
-        first_saliency = row["saliency_map"]
-        first_duration = row["duration"]
-    '''
-
-    '''
-    startdf = df[df["slide_type"] == "start"]
-    pairs = []
-    for (_, row) in startdf.iterrows():
-        subject = row["Subject"]
-        presentation = row["Presentation"]
-        slide_no = row["Slide_no"]
-        img_no = row["img_no"]
-        img_type = row["img_type"]
-        if verbose:
-            print("Processing: {}:{}-{}".format(subject, presentation, slide_no))
-        first_saliency = row["saliency_map"]
-        first_duration = row["duration"]
-
-        if img_type == "1-back":
-            repeated_slide_no = slide_no + 1
-        else:
-            repeated_slide_no = slide_no + 2
-
-        df_index_arr = [df["Subject"] == subject, df["Presentation"] == presentation,
-                        df["Slide_no"] == repeated_slide_no, df["img_no"] == img_no]
-        df_index = np.ones(shape=(df.shape[0],))
-        for i in df_index_arr:
-            df_index = np.logical_and(df_index, i)
-        pair_extraction = df[df_index]
-        if pair_extraction.shape[0] != 1:
-            if verbose:
-                print ("No pair found")
-            continue
-        assert pair_extraction.shape[0] > 0, "More than one image extracted"
-        pair_extraction = pair_extraction.iloc[0]
-
-        pair_presentation = pair_extraction["Presentation"]
-        pair_slide_no = pair_extraction["Slide_no"]
-        pair_img_no = pair_extraction["img_no"]
-        repeated_saliency = pair_extraction["saliency_map"]
-        repeated_duration = pair_extraction["duration"]
-
-        image1 = GetExtractedImages.by(presentation, slide_no, img_no)
-        image2 = GetExtractedImages.by(pair_presentation, pair_slide_no, pair_img_no)
-        if np.array_equal(image1, image2) == False:
-            print subject, presentation, slide_no
-            plt.subplot(2, 1, 1)
-            plt.imshow(image1)
-            plt.subplot(2, 1, 2)
-            plt.imshow(image2)
-            plt.show()
-        assert np.array_equal(image1, image2), "Image not equal"
-        pairs.append([subject, presentation, slide_no, repeated_slide_no, img_no,
-                      image1, first_saliency, repeated_saliency, first_duration,
-                      repeated_duration])
-    output_df = pd.DataFrame(pairs, columns=["Subject", "Presentation", "Slide_no",
-                                             "Repeated_slide_no", "Img_no", "Image",
-                                             "First_saliency", "Repeated_saliency",
-                                             "First_duration", "Repeated_duration"])
-    # output_df.to_csv("data/extracted_data1.csv")
-    return output_df
-    '''
-
-def single_image(index, value):
+def single_image(df, index, value):
     name = ''
-    df = data_prepare()
     res = data_filtrate(df, index, value)
-    for i in range(len(index)):
-        name = name + index[i] + ' = ' + ''.join(value[i])
-    show_saliency(res, name)
+    img = extract_saliency(res)
+    #for i in range(len(index)):
+    #    print value[i]
+    #    name = name + index[i] + ' = ' + ''.join(value[i])
+    img = show_saliency(img, name)
     #print res
-    return [res, name]
+    return img
+
+def img_compare(df, index1, value1, index2, value2):
+
+    res1 = data_filtrate(df, index1, value1)
+    img1 = extract_saliency(res1)
+    res2 = data_filtrate(df, index2, value2)
+    img2 = extract_saliency(res2)
+    name1 = ''+str(index1)+str(value1)
+    #for i in range(len(index1)):
+    #    name1 = name1 + index1[i] + ' = ' + ''.join(value1[i])
+    name2 = ''+str(index2)+str(value2)
+    #for i in range(len(index2)):
+    #    name2 = name2 + index2[i] + ' = ' + ''.join(value2[i])
+    res = show_diff(img1, img2, name1, name2)
+    return res
+
+
+
+def add_background(matrix, filename, savefilename):
+    #img = imread(filename)
+    fig = plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(matrix, cmap = 'gray')
+    #fig.savefig('sal_'+savefilename)
+    img = Image.open(filename).convert('L')
+    img = np.array(img)
+    img = imresize(img,(DataImporter.saliency_map_size[0],DataImporter.saliency_map_size[1]))
+    res = img + matrix
+    plt.subplot(1, 2, 2)
+    plt.imshow(res, cmap = 'gray')
+    fig.savefig(savefilename)
+    #plt.show()
+
+
+def iterate_results():
+    result_dir = r"D:\Grace\pyRegionAnalyzer\object_based\result"
+    bkgd_dir = r"D:\Grace\pyRegionAnalyzer\object_based\resources\img"
+
+    df = data_prepare()
+    filename = r"D:\Grace\pyRegionAnalyzer\object_based\data\object_based_v2.txt"
+    file_data = pd.read_csv(filename, delimiter="\t", quoting=csv.QUOTE_NONE)
+    for row in file_data.iterrows():
+        img_pos = row[1]["ImId"]
+        slide_num = row[1]["Slide_Num"]
+        presentation = row[1]["Presentation"]
+
+        if presentation != "ED Week 2_TWH":
+
+            bkgd_file = "{}\{}\{}\{}.bmp".format(bkgd_dir, presentation, slide_num, img_pos)
+
+            # for remitters
+            save_dir = "{}\{}\{}\{}".format(result_dir, "remitters", presentation, slide_num)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            savefilename = "{}\{}.jpg".format(save_dir, img_pos)
+
+            res = single_image(df, ["Subject", "Presentation", "Slide_no", "img_id"], [group_remitters, [str(presentation)], [str(slide_num)], [str(img_pos)]])
+            np.savetxt('temp.txt', res)
+            res = np.loadtxt('temp.txt', dtype='i', delimiter=' ')
+            add_background(res, bkgd_file, savefilename)
+
+            # for comparison
+            save_dir = "{}\{}\{}\{}".format(result_dir, "non-responders", presentation, slide_num)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            savefilename = "{}\{}.jpg".format(save_dir, img_pos)
+
+            res = single_image(df, ["Subject", "Presentation", "Slide_no", "img_id"], [group_non, [str(presentation)], [str(slide_num)], [str(img_pos)]])
+            np.savetxt('temp.txt', res)
+            res = np.loadtxt('temp.txt', dtype='i', delimiter=' ')
+            add_background(res, bkgd_file, savefilename)
+
+
+            #for comparison
+            save_dir = "{}\{}\{}\{}".format(result_dir, "comparison", presentation, slide_num)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+
+            savefilename = "{}\{}.jpg".format(save_dir, img_pos)
+
+            res = img_compare(df, ["Subject", "Presentation", "Slide_no", "img_id"], [group_remitters, [str(presentation)], [str(slide_num)], [str(img_pos)]], ["Subject", "Presentation", "Slide_no", "img_id"], [group_non, [str(presentation)], [str(slide_num)], [str(img_pos)]])
+            np.savetxt('temp.txt', res)
+            res = np.loadtxt('temp.txt', dtype='i', delimiter=' ')
+            add_background(res, bkgd_file, savefilename)
+
 
 
 if __name__ == "__main__":
 
-    img1 = single_image(["UniqueID"],[["F01HA"]])
-    print type(img1[0]), type(img1[1])
-    print img1[0], img1[1]
-    #img1 = single_image(["cat", "slide_type"],[["BD"], ["TEST_KDEF"]])
-    #img2 = single_image(["cat", "slide_type"],[["D","R","C"], ["TEST_KDEF"]])
-    #show_saliency_diff(img1[0], img2[0], img1[1], img2[1])
+    #iterate_results()
+
+    df = data_prepare()
+    res = single_image(df, ["Subject", "UniqueID"],[group_remitters,["2058"]])
+    #res = img_compare(df, ["Subject", "UniqueID"],[group_remitters,["2058"]],["Subject", "UniqueID"],[group_non,["2058"]])
+    np.savetxt('temp.txt', res)
+
+    res = np.loadtxt('temp.txt', dtype = 'i', delimiter = ' ')
+    add_background(res, 'baby.jpg', 'test.jpg')
+
+    #img1 = single_image(["UniqueID"],[["F01HA"]])
+
 

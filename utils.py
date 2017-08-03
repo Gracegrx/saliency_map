@@ -1,11 +1,15 @@
 import numpy as np
 
+
 def makeGaussian(size, centre, fwhm=10):
     x = np.arange(0, size[1], 1, float)
     y = np.arange(0, size[0], 1, float)[:,np.newaxis]
     x0 = centre[0]
     y0 = centre[1]
     return np.exp(-4*np.log(2) * ((x-x0)**2 + (y-y0)**2) / fwhm**2)
+
+
+
 
 class Rect:
     def __init__(self, x, y, w, h):

@@ -1,4 +1,6 @@
-import data_importer
-
-a = DataImporter("data1.txt")
-b = a.get_fix_sequence_df()
+from PIL import Image
+img = Image.open('3.bmp')
+area = (144,41,446,441)
+cropped_img = img.crop(area)
+cropped_img.show()
+cropped_img.save('bkgd.jpg')
