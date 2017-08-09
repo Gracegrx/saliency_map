@@ -9,12 +9,14 @@ class DataImporter:
     def __init__(self, filename):
         self.file_data = pd.read_csv(filename, delimiter="\t", quoting=csv.QUOTE_NONE)
                
-    def get_fix_sequence_df(self, closure, columns):
+    def get_fix_sequence_df(self, closure, verbose, columns):
         output_array = []
         for (subject, cat, slide_no, uniqueID, img_pos, presentation, slide_type,
              fixation_list) in self._iterate_file_data(self.file_data):
             output = closure(fixation_list, subject, slide_no, presentation, slide_type, uniqueID, img_pos, cat)
             output_array.append(output)
+            if verbose == True:
+                print output
         output_df = pd.concat(output_array)
         #print "columns of output_df is: ", output_df.columns
         output_df.columns = columns
